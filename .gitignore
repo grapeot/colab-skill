@@ -1,0 +1,20 @@
+# OS junk
+.DS_Store
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# Build / logs / scratch
+dist/
+build/
+tmp/
+*.log
