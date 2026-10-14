@@ -18,11 +18,16 @@ It checks:
 1. Every file the skill promises exists (`skills/colab/SKILL.md`, `README.md`,
    `AGENTS.md`, `.env.example`, the login script).
 2. `scripts/colab_login.sh` passes `bash -n` (syntax) and is executable.
-3. The root skill declares the load-bearing boundaries — a grep for the required
-   phrases: stop-the-VM, ephemeral disk, eligibility, no-hosting, `Service
-   Unavailable`, quota or entitlement, HTTP 500, `__file__`, external deadline,
+3. The root skill contains required phrases. Fixed-string grep uses `-e` to
+   accept patterns starting with `--` on GNU and BSD grep. Phrases: stop-the-VM, ephemeral
+   disk, eligibility, no-hosting, `Service Unavailable`, unknown cause, response
+   body unread, `--high-mem`, single-variable, `HIGH_RAM` not a required switch,
+   the Ultra benefits page, 5x, dated colabtools 6076, no allocation guarantee,
+   503 not a proven capacity cause, HTTP 500, `__file__`, external deadline,
    watchdog (rejected as a same-group sleep pattern), runtime proxy, and
-   `not complete`. Documented `bash` fences must pass `bash -n`.
+   `not complete`. Documented `bash` fences must pass `bash -n`. These checks
+   verify documented phrases and bash syntax only. They are not runtime
+   behavior proof. They do not add a runner or a framework.
 4. Public-hygiene scan: no real email addresses, no vault (password-manager)
    references, no private key blocks, no secrets accidentally committed, no
    absolute home paths other than the documented `~/.config/colab-cli/` default.

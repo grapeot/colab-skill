@@ -15,9 +15,18 @@ a zero-setup way to get a large-VRAM card by the hour for **batch data
 generation and fine-tuning**. But three things trip people up, and this skill
 encodes all three:
 
-1. **The 96 GB card is gated to the top tier.** `G4` is a *Premium GPU*; it is
-   unlocked by Google AI Ultra (and reachable via Colab Pro+), not by the
-   cheaper Google AI Pro plan. Cheap-tier compute units cannot select it.
+1. **Premium GPU is a published benefit, not a 400 diagnosis.** `G4` is a
+   *Premium GPU*. Google's Ultra benefits page states premium GPU access for
+   Ultra members, and limits that Colab feature to 18+, the family plan
+   manager, non-trial memberships, and the listed regions:
+   https://support.google.com/googleone/answer/16286513
+   That sentence is not 20x-only. Do not require an upgrade from 5x to 20x to
+   request `G4`. Do not read the page as excluding Colab Pro+: a 2026-08-10
+   comment on https://github.com/googlecolab/colabtools/issues/6076 said G4
+   was available to Colab Pro+ at that time. That note is dated and does not
+   guarantee allocation. Prefer omitting `--high-mem` for `G4`. Omitting it
+   does not guarantee allocation. A 400 on that flag is not proof the plan
+   lacks entitlement.
 2. **Credits are a budget, not a reservation.** They meter by the hour the VM is
    alive and expire. A `colab new` session burns credits until you `colab stop`.
 3. **It is built for interactive compute, not hosting.** There is no scale-out,
@@ -114,8 +123,14 @@ finally / external deadline contract are in `skills/colab/SKILL.md`. This repo
 does not reimplement `upload` or `exec`.
 
 Supported accelerators: `T4`, `L4`, `G4` (RTX PRO 6000, 96 GB), `H100`, `A100`;
-TPUs `v5e1`, `v6e1`. Availability depends on your subscription tier and live
-capacity; `G4` is frequently unavailable.
+TPUs `v5e1`, `v6e1`. For `G4`, prefer omitting `--high-mem`. That omission
+does not guarantee allocation. The default shape can already have a large host
+RAM. `HIGH_RAM` is a requested shape, not a required performance switch.
+`Service Unavailable` (HTTP 503) is a class, not a proven capacity cause. A
+retry once, then a fallback, is a suggestion and does not guarantee
+allocation. An accelerator HTTP 400 has an unknown cause. On CLI 0.7.4 the
+"quota or entitlement" text is a guess; the CLI does not read the response
+body. Do not treat that 400 as a missing-plan diagnosis.
 
 See `skills/colab/SKILL.md` for the full contract: data transfer paths, the
 eligibility and terms boundaries, and the known traps.

@@ -51,10 +51,16 @@ unavoidable and stays interactive.
 
 ## Boundaries
 
-- **Eligibility**: `G4` (RTX PRO 6000, 96 GB) is a Premium GPU. It is unlocked
-  by Google AI Ultra and reachable via Colab Pro+. Cheaper plans get priority
-  access to *faster* accelerators (T4/L4/A100), not the Premium GPU. Do not
-  promise a 96 GB card to a user on a cheaper tier.
+- **Eligibility**: `G4` (RTX PRO 6000, 96 GB) is a Premium GPU. Google's Ultra
+  benefits page states premium GPU access for Ultra members, with Colab limited
+  to 18+, the family plan manager, non-trial memberships, and the listed
+  regions: https://support.google.com/googleone/answer/16286513 . That sentence
+  is general. Do not say only the 20x plan qualifies, and do not require an
+  upgrade from 5x to 20x. Do not invent a narrower gate than that page states.
+  Do not read it as excluding Colab Pro+: a 2026-08-10 comment on
+  https://github.com/googlecolab/colabtools/issues/6076 said G4 was available
+  to Colab Pro+ at that time. That note is dated and is not an allocation
+  guarantee. A 400 is not a plan diagnosis.
 - **Cost**: compute units meter by wall-clock VM lifetime, not compute time, and
   expire (90 days for Colab-native units). Every flow must end in `colab stop`
   (or `colab run`, which self-releases).
