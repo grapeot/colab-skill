@@ -3,6 +3,29 @@
 ## Changelog
 
 ### 2026-10-14
+- Added run checks in `skills/colab/SKILL.md` from jobs that already ran. No
+  measured speed, account, balance, host, session id, private path, or model
+  baseline was copied. Probe `compute_cap`, Torch device capability when Torch
+  is imported, and `nvcc --version` when compiling. Rebuild when the
+  architecture changes. An `sm_80` binary is not an `sm_120` binary. An `nvcc`
+  version or one handwritten assembly failure does not prove NVFP4 unsupported;
+  check the library or backend. Size disk peak as download + pack/unpack +
+  scratch, and do not keep a source checkout plus a Hugging Face cache of the
+  same weights. To free space, back up results, then delete only this run's
+  remote model files that can be downloaded again. Do not touch user data,
+  local files, or another session's files.
+  Query `memory.total`; MIG and a product page are not the allocation. Cite
+  `prompt_tokens` and `cache_n`, or equivalent response fields, not a context
+  flag. Keep decode time separate from aggregate wall time. Warmup and
+  prompt-cache hits are not the measured run. Two generated tokens are not
+  throughput. App context must cover actual input + output. A max-context
+  change is a separate config and repro. Download request, response, tool
+  calls, test stdout, and pins before stop. Raw must not contain a proxy URL
+  or token. A loopback process for one measurement is not hosting. Do not open
+  a tunnel. A flag or env
+  var must exist in the pinned source; an unknown env var can be silently
+  ignored. Prove effect. Output quality and an approximation that skips experts
+  are separate. The existing `__file__` rule was not repeated.
 - Corrected the HTTP 400 reading in `skills/colab/SKILL.md`, `README.md`, and
   this file. CLI 0.7.4 `session.new` (same branch in `colab run`) maps any
   accelerator 400 to one "quota or entitlement" message and does not read the
@@ -121,3 +144,29 @@ not repeat them.
   is a check, not a diagnosis.
 - **Compute-unit rates are unpublished.** `colab usage` shows the live rate and
   balance; do not hard-code a rate in docs or scripts.
+- **A granted accelerator is not a matching binary.** Probe `compute_cap` and,
+  when the job uses them, Torch's device capability and `nvcc --version`.
+  Rebuild when the architecture changes. Do not run an `sm_80` binary on
+  `sm_120`. A missing or old `nvcc`, or one handwritten assembly failure, does
+  not prove NVFP4 unsupported. Check the library or backend the job will call.
+- **Size the disk peak, and query memory.** Download, pack or unpack, and
+  scratch can all be live at once. A source checkout plus a Hugging Face cache
+  of the same weights is two copies. If space is short, back up results, then
+  delete this run's remote model files that can be downloaded again. Do not
+  delete user data, local files, or another session's files. MIG and a
+  product-page capacity are not the allocation; use `memory.total`.
+- **Measure the fields the server counted.** `prompt_tokens` and `cache_n`, or
+  equivalent response fields, are the input record. A context flag is not.
+  Decode time and aggregate wall time are different. Warmup and prompt-cache
+  hits are not the measured run.
+  Two generated tokens are not throughput. App context must be >= actual input
+  + output. A max-context change gets its own config and repro note.
+- **Save the run, then stop.** Download the full request, response, tool calls,
+  test stdout, and pins before `colab stop`. Raw must not contain a runtime
+  proxy URL or token. A loopback API for one bounded measurement is not
+  standing hosting. Do not open a tunnel.
+- **A switch is real only in the pin you ran.** Look up the flag or env var in
+  that source. An unknown env var can be silently ignored. Prove effect from a
+  log or behavior. Output quality and an approximation that skips experts are
+  separate. If part of the model was disabled for speed, do not label the run
+  as that model.

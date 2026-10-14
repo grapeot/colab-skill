@@ -25,7 +25,11 @@ It checks:
    the Ultra benefits page, 5x, dated colabtools 6076, no allocation guarantee,
    503 not a proven capacity cause, HTTP 500, `__file__`, external deadline,
    watchdog (rejected as a same-group sleep pattern), runtime proxy, and
-   `not complete`. Documented `bash` fences must pass `bash -n`. These checks
+   `not complete`. Also: `compute_cap`, `sm_80`, `sm_120`, `NVFP4`,
+   `memory.total`, `prompt_tokens`, `cache_n`, `not a throughput`,
+   `pinned source`, `silently ignored`, `two copies`, `download again`,
+   `tunnel`, `aggregate wall`, `loopback`, and `skips experts`.
+   Documented `bash` fences must pass `bash -n`. These checks
    verify documented phrases and bash syntax only. They are not runtime
    behavior proof. They do not add a runner or a framework.
 4. Public-hygiene scan: no real email addresses, no vault (password-manager)

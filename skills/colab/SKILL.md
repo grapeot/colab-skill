@@ -19,7 +19,10 @@ is **an artifact that landed somewhere durable, and a released runtime**.
 ## When NOT to use
 
 - **Hosting.** Do not stand up a long-running service, API, or file/media server
-  on Colab. This is against the terms and the runtime will be reclaimed.
+  on Colab. This is against the terms and the runtime will be reclaimed. A
+  loopback process for one measurement in this session is not hosting. Do not
+  open a tunnel, and do not leave that process running after you
+  download.
 - **Cluster scale-out.** Colab is one VM per session. For many nodes, use GCP
   (G4 VMs / Vertex AI / GKE) or Colab Enterprise.
 - **Long unattended training** that exceeds the session cap and cannot
@@ -91,7 +94,9 @@ colab usage         # live compute-unit rate and balance
 3. **Move data.** Stream large datasets on the VM (HF, `git clone`, `wget`) or
    stage on Drive/GCS. `colab upload` and `colab exec` are already the write
    path; do not reimplement the CLI. Create the remote parent before upload.
-4. **Collect the artifact** to a durable location *before* releasing.
+4. **Collect the artifact** to a durable location *before* releasing. Also
+   download the request, response, tool calls, test stdout, and pins you will
+   cite. Raw must not contain a proxy URL or token.
 5. **Release.** `colab stop -s` the session you created, or rely on `colab run`
    without `--keep`. Confirm that name is gone. Do not stop any other session.
 
@@ -139,10 +144,24 @@ Two obligations, not one snippet:
    failure note: command, exit status, HTTP status. Redact any runtime proxy
    URL or `colab-runtime-proxy-token` before the note leaves the terminal.
 
-After allocation, print and keep the GPU name. `colab status` repeats the
-request and also prints a runtime endpoint; record the probed name only, not
-the endpoint or any URL. On 0.7.4 an unrecognized `--gpu` value is sent as
-A100, not rejected.
+After allocation, print and keep
+`nvidia-smi --query-gpu=name,compute_cap,memory.total`. A successful
+accelerator request is not that line. `colab status` repeats the request and
+also prints a runtime endpoint; record the probed line only, not the endpoint
+or any URL. On 0.7.4 an unrecognized `--gpu` value is sent as A100, not
+rejected.
+
+If the job imports Torch, print `torch.cuda.get_device_capability()` after
+that install. If the job compiles, print `nvcc --version`. When the compute
+capability changes, rebuild. Do not run an `sm_80` binary on `sm_120`.
+
+A missing `nvcc`, an old `nvcc`, or one handwritten assembly failure does not
+prove a format such as NVFP4 is unsupported. Check the library or backend you
+will call, and keep what that check printed.
+
+MIG and a product-page size are not the allocation. Use `memory.total` from
+the probe. If the GPU is partitioned, the queried slice is the memory you
+have.
 
 HTTP status is a class, not a proven cause. `403` is not proof of an identity
 or scope failure; `colab whoami` is a check, not a diagnosis. `503` /
@@ -168,7 +187,7 @@ the flag you asked for.
 # Do not cancel an external deadline in this snippet.
 name=example
 rc=0
-printf '%s\n' 'import shutil,subprocess; exe=shutil.which("nvidia-smi"); print(subprocess.check_output([exe,"--query-gpu=name","--format=csv,noheader"],text=True).strip() if exe else "CPU")' \
+printf '%s\n' 'import shutil,subprocess; exe=shutil.which("nvidia-smi"); print(subprocess.check_output([exe,"--query-gpu=name,compute_cap,memory.total","--format=csv,noheader"],text=True).strip() if exe else "CPU")' \
   | colab exec -s "$name" --timeout 60 || rc=$?
 printf '%s\n' 'import os; os.makedirs("/content/example", exist_ok=True)' \
   | colab exec -s "$name" --timeout 60 || rc=$?
@@ -205,10 +224,78 @@ fi
 `3600` is an example ceiling for one job, not a budget framework. If `colab exec`
 or `colab run` times out, the business code did not finish.
 
+## Disk, measurement, and switches
+
+Size the peak before the first large download: the download, the pack or
+unpack, and scratch, occupied at once. A source checkout and a Hugging Face
+cache of the same weights are two copies. Keep one unless the job needs both.
+
+If the remote disk cannot hold that peak, back up results you cannot recompute,
+then delete only this run's remote model files that you can download again. Do
+not delete user data, files this run did not create, another session's files,
+or files on the local machine.
+
+Record `prompt_tokens` and `cache_n` from the response, or the server's
+equivalent fields. A context-length flag is not the input length. Decode time
+and aggregate wall time are different numbers; do not merge them. Warmup
+and a prompt-cache hit are not the measured run. Two generated tokens are not
+a throughput result.
+
+The context value in the app config must be at least the actual input plus
+the actual output. If you change max context, write a separate config and a
+separate repro note. Do not treat that run as the same setup.
+
+Download those records before `colab stop`: the full request, response, and
+tool calls you will cite, test stdout, and pins (package versions, the probed
+GPU line, the config that ran). Raw must not contain a runtime proxy URL or
+token. Redact first, or do not download that file. Download, then stop.
+
+Before setting a flag or env var, find that name in the pinned source this
+VM is running. A newer doc or tag does not count. An unknown env var can be
+silently ignored. Prove it took effect with a log line or a behavior you can
+point at. Silence is not proof.
+
+Output quality and an approximation that skips experts are separate results.
+The same split applies to any cut that drops part of the model. If you turned
+part of the model off to go faster, do not label the output as that model.
+
+### Checklist
+
+- Probed `compute_cap` and `memory.total`, not only `--gpu`.
+- Binary matches that capability. Rebuilt if the architecture changed.
+- Format support came from the library or backend, not from `nvcc` alone.
+- Disk peak sized. No accidental second copy of the weights.
+- Cited lengths are response fields such as `prompt_tokens` / `cache_n`, or equivalents, not a context flag.
+- Decode time is separate from aggregate wall time. Warmup and cache hits are not the measured run. Two tokens are not throughput.
+- Context config covers input + output. A max-context change is a new config.
+- Request, response, tool calls, stdout, and pins downloaded. No proxy or token in raw.
+- No tunnel was opened. Download, then stop.
+- Each switch is in the pinned source and shows in a log or behavior.
+
 ## Acceptance (self-checkable)
 
 - The job's artifact exists at a durable path (Drive/GCS/local) and is non-empty.
-- The job note records the probed GPU name, not only the requested `--gpu` flag.
+- The job note records the probed GPU name, `compute_cap`, and `memory.total`,
+  not only the requested `--gpu` flag.
+- If a binary was built for another compute capability, it was rebuilt. An
+  `sm_80` binary was not used on `sm_120`.
+- If a numeric format was called unsupported, the note shows a library or
+  backend check, not only an `nvcc` version or one assembly failure.
+- Disk peak was sized before the large download. A second copy of the same
+  weights was not kept by accident. Any deletion was this run's re-downloadable
+  remote model files, after a results backup, and not user data, local files,
+  or another session's files.
+- If a length or throughput is cited, it comes from response fields such as
+  `prompt_tokens` and `cache_n`, or equivalent response fields, with warmup
+  separate from the measured run. Decode time was not merged into aggregate
+  wall time. Two generated tokens are not that number. A context flag is not
+  the input length. A max-context change has its own config note.
+- The files you will cite (request, response, tool calls, test stdout, pins)
+  were downloaded before stop. Saved raw has no runtime proxy URL or token.
+- No tunnel was opened. A loopback process was not left up after download.
+- Each switch you report exists in the pinned source and shows in a log or
+  behavior. If part of the model was disabled for speed, the result is not
+  labeled as the unmodified model.
 - A timeout was not reported as a completed run.
 - `colab sessions` shows **no** leftover session you created.
 - Published text contains no runtime proxy URL.
@@ -245,6 +332,24 @@ or `colab run` times out, the business code did not finish.
   diagnosis.
 - **Unpublished rates.** Read `colab usage` for the live rate; never hard-code a
   units-per-hour figure.
+- **Assigned GPU is not the binary.** Probe `compute_cap` and `memory.total`.
+  Rebuild when the architecture changes. An `sm_80` binary is not an `sm_120`
+  binary. `nvcc` or one assembly failure does not prove NVFP4 unsupported.
+- **Disk peak, not the checkpoint size.** Count download, pack or unpack, and
+  scratch together. Do not keep two copies of the same weights. To free space,
+  back up results, then delete only this run's remote model files you can
+  download again. Do not touch user data or the local machine. Query memory;
+  do not use the product page.
+- **A flag is not a measurement.** Use `prompt_tokens` and `cache_n`, or the
+  server's equivalent fields. Keep decode time separate from aggregate wall
+  time. Two generated tokens are not a throughput result. A max-context change
+  is a new config.
+- **Download the evidence, then stop.** Request, response, tool calls, stdout,
+  and pins. Redact proxy URLs and tokens in raw. Loopback for one measurement
+  is not hosting. Do not open a tunnel.
+- **Unknown switches may be ignored.** Find the name in the pinned source. An unknown
+  env var can be silently ignored. Prove effect. A run that skips experts or
+  drops model work is not that model.
 
 ## Private overlay
 
