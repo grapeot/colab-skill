@@ -133,4 +133,6 @@ allocation. An accelerator HTTP 400 has an unknown cause. On CLI 0.7.4 the
 body. Do not treat that 400 as a missing-plan diagnosis.
 
 See `skills/colab/SKILL.md` for the full contract: data transfer paths, the
-eligibility and terms boundaries, and the known traps.
+eligibility and terms boundaries, and the known traps. Before citing a result,
+probe compute capability and memory, size the disk peak, and take token counts
+from the response rather than a context flag. Do not open a tunnel.

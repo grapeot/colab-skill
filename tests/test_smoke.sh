@@ -64,6 +64,24 @@ check_phrase "same-group sleep is not a deadline" "watchdog"
 check_phrase "timeout is not completion" "not complete"
 check_phrase "collect before stop" "colab download"
 check_phrase "redact runtime proxy URLs" "runtime proxy"
+check_phrase "probe compute capability" "compute_cap"
+check_phrase "do not reuse sm_80 on sm_120" "sm_80"
+check_phrase "sm_120 is a different binary" "sm_120"
+check_phrase "NVFP4 needs a library check" "NVFP4"
+check_phrase "query memory.total" "memory.total"
+check_phrase "cite prompt_tokens" "prompt_tokens"
+check_phrase "cite cache_n" "cache_n"
+check_phrase "two tokens are not throughput" "not a throughput"
+check_phrase "switches live in pinned source" "pinned source"
+check_phrase "unknown env can be ignored" "silently ignored"
+check_phrase "avoid a second weight copy" "two copies"
+check_phrase "delete only re-downloadable files" "download again"
+check_phrase "no opened tunnel" "tunnel"
+check_phrase "decode is not aggregate wall" "aggregate wall"
+check_phrase "loopback is not hosting" "loopback"
+if grep -q 'tunnel by default' "$skill"; then bad "tunnel is optional"; else ok "tunnel is not optional"; fi
+if grep -q 'single-token decode' "$skill"; then bad "decode metric is single-token"; else ok "decode is not single-token"; fi
+check_phrase "expert skip is a separate result" "skips experts"
 if grep -q 'nohup' "$skill"; then bad "skill still ships a nohup watchdog"; else ok "no nohup watchdog"; fi
 if grep -q '>/dev/null 2>&1' "$skill"; then bad "skill discards command stderr"; else ok "stderr not discarded"; fi
 
