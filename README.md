@@ -75,16 +75,43 @@ colab usage
 ## Usage
 
 ```bash
-# One-shot ephemeral job: provision -> run local script -> collect output -> release
-colab run --gpu G4 train.py --epochs 3
+# One-shot cell. --timeout defaults to 30s. A timeout is not a completed job.
+colab run --gpu G4 --timeout 3600 train.py --epochs 3
 
-# Or manage the session explicitly
-colab new --gpu G4
-colab install -s <name> -r requirements.txt
-colab exec -s <name> -f generate_data.py
-colab download -s <name> /content/output.jsonl ./output.jsonl
-colab stop -s <name>            # ALWAYS stop — the VM meters credits while alive
+# Managed cell. Name the session. Collect, then stop, even when exec fails.
+name=example
+rc=0
+colab new -s "$name" --gpu G4 || exit 1
+colab install -s "$name" -r requirements.txt || rc=$?
+if [ "$rc" -eq 0 ]; then
+  colab exec -s "$name" --timeout 3600 -f generate_data.py || rc=$?
+fi
+colab download -s "$name" /content/output.jsonl ./output.jsonl || rc=$?
+colab stop -s "$name" || rc=$?
+# stop exit 0 is not proof of release. Do not print session lines.
+list="$(mktemp)"
+list_rc=0
+colab sessions >"$list" || list_rc=$?
+if [ "$list_rc" -ne 0 ]; then
+  printf 'could not list sessions: exit %s\n' "$list_rc" >&2
+  rc=1
+elif grep -F "[${name}] " "$list" >/dev/null; then
+  printf 'session still listed: %s\n' "$name" >&2
+  rc=1
+fi
+rm -f "$list"
+if [ "$rc" -ne 0 ]; then
+  printf 'not complete: exit %s\n' "$rc" >&2
+  exit "$rc"
+fi
 ```
+
+`colab exec -f` reads the local file and runs that source as a notebook cell.
+It does not set `__file__` and does not place a file on the VM. The download
+above is a path that cell must have written. The real-file sequence (create the
+parent, `colab upload`, subprocess the uploaded path), the GPU probe, and the
+finally / external deadline contract are in `skills/colab/SKILL.md`. This repo
+does not reimplement `upload` or `exec`.
 
 Supported accelerators: `T4`, `L4`, `G4` (RTX PRO 6000, 96 GB), `H100`, `A100`;
 TPUs `v5e1`, `v6e1`. Availability depends on your subscription tier and live

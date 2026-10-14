@@ -69,11 +69,14 @@ unavoidable and stays interactive.
 
 | Direction | Mechanism |
 |---|---|
-| In (code) | `colab exec -f local.py` reads the file locally and transmits it |
+| In (code, cell) | `colab exec -f local.py` reads the local file and executes that source as a notebook cell. It does not place a file on the VM and does not set `__file__`. |
 | In (data, large) | stream from Hugging Face / `git clone` / `wget` on the VM; or stage on Drive/GCS |
 | In (files) | `colab upload LOCAL REMOTE` |
 | Out | `colab download REMOTE LOCAL`; or write to Drive/GCS |
 | Persist | `colab drivemount` (Drive), `colab auth` (GCP/GCS) |
+
+A real path on the VM is not `exec -f`. Create the parent, then `colab upload`,
+then execute that remote path. `colab upload` does not create missing parents.
 
 ## Migration / evolution
 
