@@ -39,6 +39,38 @@ check_phrase "ephemeral disk rule"     "ephemeral"
 check_phrase "eligibility (Premium)"   "Premium GPU"
 check_phrase "no hosting / terms"      "hosting"
 check_phrase "G4 unavailable handling" "Service Unavailable"
+check_phrase "quota is not a retry loop" "quota or entitlement"
+check_phrase "upload missing parent" "HTTP 500"
+check_phrase "exec -f has no __file__" "__file__"
+check_phrase "external deadline stays armed" "external deadline"
+check_phrase "same-group sleep is not a deadline" "watchdog"
+check_phrase "timeout is not completion" "not complete"
+check_phrase "collect before stop" "colab download"
+check_phrase "redact runtime proxy URLs" "runtime proxy"
+if grep -q 'nohup' "$skill"; then bad "skill still ships a nohup watchdog"; else ok "no nohup watchdog"; fi
+if grep -q '>/dev/null 2>&1' "$skill"; then bad "skill discards command stderr"; else ok "stderr not discarded"; fi
+
+echo "== documented shell syntax =="
+tmpd="$(mktemp -d)"
+while IFS= read -r f; do
+  awk -v dir="$tmpd" -v base="$(basename "$f")" '
+    /^```bash$/ { p=1; n++; fn=sprintf("%s/%s.%d.sh", dir, base, n); next }
+    /^```$/ && p { p=0; close(fn); next }
+    p { print > fn }
+  ' "$f"
+done <<'FILES'
+README.md
+docs/test.md
+skills/colab/SKILL.md
+FILES
+found=0
+for s in "$tmpd"/*.sh; do
+  [ -f "$s" ] || continue
+  found=1
+  if bash -n "$s"; then ok "syntax $(basename "$s")"; else bad "syntax $(basename "$s")"; fi
+done
+rm -rf "$tmpd"
+[ "$found" -eq 1 ] || bad "no documented bash fences extracted"
 
 echo "== public hygiene =="
 # Generic patterns only; this scanner must not itself contain real secrets, and
