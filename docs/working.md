@@ -3,18 +3,35 @@
 ## Changelog
 
 ### 2026-10-14
+- Corrected the HTTP 400 reading in `skills/colab/SKILL.md`, `README.md`, and
+  this file. CLI 0.7.4 `session.new` (same branch in `colab run`) maps any
+  accelerator 400 to one "quota or entitlement" message and does not read the
+  response body, so that text is a guess. The same 400 can be parameter or
+  shape. Do not treat every 400 as a permission denial, and do not treat it as
+  proof the failure is not capacity. Classify 403, 400, and 503 as HTTP
+  classes, not proven causes. A 503 capacity retry is a suggestion and does
+  not guarantee allocation. For G4, omitting `--high-mem` is one
+  single-variable control. It does not prove the default shape is available
+  and does not guarantee allocation. The default shape can already have a large
+  host RAM. `HIGH_RAM` is a requested shape, not a required performance switch.
+  Cited https://support.google.com/googleone/answer/16286513 for premium GPU,
+  18+, family plan manager, no trial, and listed regions. That page's Colab
+  sentence is general for Ultra members. Do not say only the 20x plan
+  qualifies, and do not require an upgrade from 5x to 20x. A 2026-08-10
+  comment on https://github.com/googlecolab/colabtools/issues/6076 said G4 was
+  available to Colab Pro+ at that time; do not read the Ultra page as excluding
+  Pro+. That note is dated and is not an allocation guarantee. No runtime was
+  allocated for this correction.
 - Documented live CLI 0.7.4 behavior in `skills/colab/SKILL.md`: missing upload
-  parent, `exec -f` / `run` file semantics, quota versus capacity, no deadline on
-  `colab new`, and runtime proxy URLs in error text. No new runtime was allocated
-  to write this; flags were checked with `colab <command> --help`.
+  parent, `exec -f` / `run` file semantics, assignment HTTP classes, no deadline
+  on `colab new`, and runtime proxy URLs in error text. No new runtime was
+  allocated to write this; flags were checked with `colab <command> --help`.
 - Pointed `README.md` at that section. Extended the offline phrase checks.
 - Corrected the managed-session example. A same-group `sleep` under `bash` is
   not an external deadline: killing that bash does not reliably kill `sleep`,
   and cancelling the deadline before a successful `colab stop -s` drops the
   fallback. The normal path is collect, then stop. Failure notes keep exit
-  status and HTTP status, and redact proxy URLs. HTTP 400 "quota or
-  entitlement" is not capacity; retry does not fix entitlement. Confirm the
-  account. Do not claim every quota never clears.
+  status and HTTP status, and redact proxy URLs.
 
 ### 2026-10-12
 - Scaffolded the project: `docs/`, `skills/colab/`, `scripts/`, `tests/`.
@@ -56,21 +73,36 @@ not repeat them.
   single most expensive mistake an agent can make here.
 - **`/content` is ephemeral.** The VM is deleted when idle or at max lifetime;
   anything not on Drive/GCS/local is gone. Long jobs must checkpoint.
-- **The 96 GB card is tier-gated.** `G4` is a Premium GPU (Google AI Ultra, or
-  Colab Pro+). Cheaper tiers get priority access to T4/L4/A100, not `G4`. The
-  vendor's marketing copy is ambiguous; the Help Center page and blog tie
-  Premium GPU to Ultra.
-- **`G4` availability is normal to fail, and the two failures differ.** Capacity
-  comes back as `Service Unavailable`; retry once, then fall back. HTTP 400
-  with the CLI text "quota or entitlement" is not that. Retrying it does not
-  fix an entitlement rejection. Confirm the account with `colab whoami` rather
-  than treating the 400 as capacity. The CLI does not expose a reason that
-  proves every quota will never clear, so do not claim that, and do not loop
-  on the 400. Either way, record the GPU a probe actually printed
-  (`nvidia-smi --query-gpu=name`), not the `--gpu` flag. On 0.7.4 an
-  unrecognized `--gpu` value is sent as A100 rather than rejected, which is
-  another reason the probe is mandatory. Do not copy the runtime endpoint from
-  `colab status` into that note.
+- **Premium GPU is a published benefit, not a 400 diagnosis.** Google's Ultra
+  benefits page states premium GPU access for Ultra members, with Colab limited
+  to 18+, the family plan manager, non-trial memberships, and the listed
+  regions: https://support.google.com/googleone/answer/16286513 . That Colab
+  sentence is general. It does not say only the 20x plan qualifies. Do not
+  require an upgrade from 5x to 20x to request `G4`. Do not invent a narrower gate than that page states.
+  Do not read it as excluding Colab Pro+: a 2026-08-10 comment on
+  https://github.com/googlecolab/colabtools/issues/6076 said G4 was available
+  to Colab Pro+ at that time. That note is dated and is not an allocation
+  guarantee.
+- **`G4` shape and HTTP class are different facts.** Prefer omitting
+  `--high-mem` for `G4`. The default shape can already have a large host RAM.
+  `HIGH_RAM` is the shape the flag requests, not a required performance switch.
+  On CLI 0.7.4 the flag is ignored only for L4 and the TPU variants; for `G4`
+  it is sent. If `G4` plus `--high-mem` returns 400, dropping the flag is one
+  single-variable control. It does not prove the default shape is available,
+  does not guarantee allocation, and does not diagnose a plan with no
+  entitlement. `session.new` (and the same branch in `colab run`) turns any
+  accelerator 400 into one message and does not read the response body. "quota
+  or entitlement" is that guess. The same 400 can be parameter or shape.
+  Classify the status: 403 and 503 / `Service Unavailable` are HTTP classes,
+  not proven causes. `colab whoami` after a 403 is a check, not a diagnosis. A
+  503 capacity retry (once, then fall back) is a suggestion and does not
+  guarantee allocation. 400 has an unknown cause. Do not say every 400 is a
+  permission denial, and do not say a 400 proves the failure is not capacity.
+  Do not loop on the unchanged request. Record the GPU
+  a probe actually printed (`nvidia-smi --query-gpu=name`), not the `--gpu`
+  flag. On 0.7.4 an unrecognized `--gpu` value is sent as A100 rather than
+  rejected, which is another reason the probe is mandatory. Do not copy the
+  runtime endpoint from `colab status` into that note.
 - **`colab exec -f` reads the local file and executes that source as a notebook
   cell.** It does not set `__file__` and does not place a file on the VM. Skip
   upload only when cell semantics are enough. When the code needs a real path,
@@ -85,7 +117,7 @@ not repeat them.
   reaches chat, issues, public logs, or this repo. Do not copy `colab url`
   output either. The token cache rule is not enough on its own.
 - **Auth identity matters.** The CLI authenticates as a user account; a service
-  account has no Colab entitlement. Use `colab whoami` to confirm identity and
-  scopes before blaming a 403 on the code.
+  account has no Colab entitlement. A 403 is not proof of that. `colab whoami`
+  is a check, not a diagnosis.
 - **Compute-unit rates are unpublished.** `colab usage` shows the live rate and
   balance; do not hard-code a rate in docs or scripts.

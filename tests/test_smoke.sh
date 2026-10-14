@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Offline smoke test: structure, helper syntax, boundary coverage, and
-# public-hygiene scan. No network, no Colab account, no credits spent.
+# Offline smoke test: structure, helper syntax, documented phrases, and
+# public-hygiene scan. Phrase checks and bash -n are not runtime behavior
+# proof. No network, no Colab account, no credits spent.
 #
 # Run from the repo root:  bash tests/test_smoke.sh
 
@@ -31,15 +32,31 @@ else
   bad "login helper does not open the URL in a browser"
 fi
 
-echo "== skill boundary coverage =="
+echo "== skill phrase presence (not runtime proof) =="
 skill=skills/colab/SKILL.md
-check_phrase() { if grep -qi "$2" "$skill"; then ok "$1"; else bad "$1"; fi; }
+# -e accepts patterns starting with -- on both GNU and BSD grep.
+check_phrase() {
+  if grep -F -q -i -e "$2" -- "$skill"; then
+    ok "$1"
+  else
+    bad "$1"
+  fi
+}
 check_phrase "stop-the-VM rule"        "colab stop"
 check_phrase "ephemeral disk rule"     "ephemeral"
 check_phrase "eligibility (Premium)"   "Premium GPU"
 check_phrase "no hosting / terms"      "hosting"
 check_phrase "G4 unavailable handling" "Service Unavailable"
-check_phrase "quota is not a retry loop" "quota or entitlement"
+check_phrase "400 cause is unknown" "unknown cause"
+check_phrase "CLI 400 text does not read the body" "does not read the response body"
+check_phrase "G4 omits high-mem" "--high-mem"
+check_phrase "high-mem 400 is one variable" "single-variable"
+check_phrase "HIGH_RAM is not a required switch" "not a required performance switch"
+check_phrase "official Ultra Colab page" "16286513"
+check_phrase "do not upgrade 5x for G4" "5x"
+check_phrase "dated Pro+ note" "6076"
+check_phrase "omitting a flag is not an allocation guarantee" "does not guarantee allocation"
+check_phrase "503 is not a proven capacity cause" "not proof of a capacity failure"
 check_phrase "upload missing parent" "HTTP 500"
 check_phrase "exec -f has no __file__" "__file__"
 check_phrase "external deadline stays armed" "external deadline"

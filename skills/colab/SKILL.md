@@ -45,10 +45,19 @@ colab usage         # live compute-unit rate and balance
 
 ## Boundaries (do not cross)
 
-- **Eligibility.** `G4` (RTX PRO 6000, 96 GB) is a **Premium GPU**, unlocked by
-  Google AI Ultra and reachable via Colab Pro+. Cheaper plans get priority access
-  to *faster* accelerators (T4/L4/A100), not the Premium GPU. Never promise a
-  96 GB card to a cheaper tier.
+- **Eligibility.** `G4` (RTX PRO 6000, 96 GB) is a **Premium GPU**. Google's
+  Ultra benefits page states premium GPU access for Google AI Ultra members,
+  and states the Colab constraints in that same section: 18 or older, Google
+  One family plan manager, not a Google One trial, and only the listed regions.
+  https://support.google.com/googleone/answer/16286513
+  That Colab sentence is general. It does not say only the 20x plan can use a
+  premium GPU. Do not require an upgrade from 5x to 20x to request `G4`. A
+  different CCU allotment is not a shape switch. Do not invent a narrower gate
+  than that page states. Do not read the page as saying Colab Pro+ cannot
+  request `G4`: a 2026-08-10 comment on
+  https://github.com/googlecolab/colabtools/issues/6076 said G4 was available
+  to Colab Pro+ at that time. That note is dated, not a tier matrix, and not
+  an allocation guarantee. Do not promise `G4` from either citation alone.
 - **Cost.** Compute units meter by **wall-clock VM lifetime**, not compute time,
   and expire. Every path must end with the runtime released: prefer `colab run`
   (self-releasing) for one-shot jobs; with `colab new`, you **must** `colab stop`.
@@ -69,7 +78,12 @@ colab usage         # live compute-unit rate and balance
 
 1. **Pick the accelerator and job shape.** Accelerators: `T4`, `L4`, `G4`,
    `H100`, `A100`; TPUs `v5e1`, `v6e1`. Choose the smallest card that fits the
-   job. `G4` when 96 GB / large-model work is required.
+   job. `G4` when 96 GB / large-model work is required. Prefer omitting
+   `--high-mem` for `G4`. The default shape can already have a large host RAM.
+   `HIGH_RAM` is the shape `--high-mem` requests. It is not a required
+   performance switch. Omitting the flag does not prove the default shape is
+   available and does not guarantee allocation. On CLI 0.7.4 the flag is
+   ignored only for L4 and the TPU variants. For `G4` it is sent.
 2. **Run the job.** One-shot, when a notebook cell is enough: `colab run --gpu G4
    --timeout <seconds> script.py`. Managed: `colab new -s example --gpu G4`, then
    `colab install` / `colab exec`. Pass an explicit `--timeout`. On CLI 0.7.4 the
@@ -128,13 +142,25 @@ Two obligations, not one snippet:
 After allocation, print and keep the GPU name. `colab status` repeats the
 request and also prints a runtime endpoint; record the probed name only, not
 the endpoint or any URL. On 0.7.4 an unrecognized `--gpu` value is sent as
-A100, not rejected. HTTP 400 with the CLI text "quota or entitlement" is not
-capacity. Retrying it does not fix an entitlement rejection; confirm the
-account with `colab whoami` instead of treating the 400 as capacity. The CLI
-does not expose a reason that proves every quota will never clear, so do not
-claim that, and do not loop on the 400. `Service Unavailable` is capacity:
-retry once, then fall back. A fallback must record the probed GPU, not the
-flag you asked for.
+A100, not rejected.
+
+HTTP status is a class, not a proven cause. `403` is not proof of an identity
+or scope failure; `colab whoami` is a check, not a diagnosis. `503` /
+`Service Unavailable` is not proof of a capacity failure. A capacity retry
+(once, then fall back) is a suggestion and does not guarantee allocation.
+`400` is a separate class with an unknown cause. On CLI 0.7.4, `session.new`
+— and the same branch in `colab run` — turns any accelerator `400` into one
+message and does not read the response body. The words "quota or entitlement"
+in that message are the CLI's guess. The same `400` can be a rejected
+parameter or shape. Do not say every `400` is really a permission denial, and
+do not say a `400` proves the failure is not capacity.
+
+For `G4`, prefer not to pass `--high-mem`. If `G4` plus `--high-mem` returns
+`400`, dropping that flag is one single-variable control, not proof the
+default shape is available and not a guarantee of allocation. A `400` on the
+high-RAM shape does not diagnose that the plan has no entitlement. Do not
+loop on the unchanged request. A fallback must record the probed GPU, not
+the flag you asked for.
 
 ```bash
 # Synthetic names. 30s is the CLI default, not a budget.
@@ -186,17 +212,22 @@ or `colab run` times out, the business code did not finish.
 - A timeout was not reported as a completed run.
 - `colab sessions` shows **no** leftover session you created.
 - Published text contains no runtime proxy URL.
-- If a 403 appeared, `colab whoami` was used to confirm identity/scopes rather
-  than guessing.
+- If a 403 appeared, `colab whoami` was used as a check, not as proof of the
+  cause.
+- A 400 was not reported as a proven missing entitlement, and was not reported
+  as proof that the failure was not capacity.
 
 ## Known traps
 
 - **Forgetting `colab stop`.** The single most expensive mistake: a `colab new`
   VM keeps metering units until stopped. Default to `colab run`.
-- **Two G4 failures.** `Service Unavailable` is capacity (retry once, then fall
-  back). HTTP 400 "quota or entitlement" is not capacity. Retrying it does not
-  fix an entitlement rejection; confirm the account. Do not claim every quota
-  never clears. Record the probed GPU either way.
+- **G4 shape, then HTTP class.** Prefer omitting `--high-mem` for `G4`.
+  `HIGH_RAM` is a requested shape, not a required performance switch.
+  Dropping the flag is a single-variable control; it does not guarantee
+  allocation. `400` has an unknown cause: on CLI 0.7.4 the accelerator 400
+  text does not read the response body. `403` and `503` / `Service
+  Unavailable` are HTTP classes, not proven causes. A capacity retry does
+  not guarantee allocation. Record the probed GPU either way.
 - **`colab new` has no deadline.** The normal path is collect, then stop, in a
   `finally` shape. An external deadline stays armed until `colab stop -s` of
   the name you created succeeds. Do not cancel it first. Do not stop a session
@@ -210,7 +241,8 @@ or `colab run` times out, the business code did not finish.
 - **Error text leaks URLs.** A runtime proxy URL in an error body is a secret.
   Redact it. Do not copy `colab url` output into chat or logs either.
 - **Wrong identity.** A service account has no Colab entitlement; use a user
-  account. Debug 403s with `colab whoami`.
+  account. A 403 is not proof of that. `colab whoami` is a check, not a
+  diagnosis.
 - **Unpublished rates.** Read `colab usage` for the live rate; never hard-code a
   units-per-hour figure.
 
